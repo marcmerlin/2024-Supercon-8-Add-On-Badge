@@ -1,4 +1,5 @@
-from machine import I2C, Pin
+# You can test the code for syntax before upload with pylint
+
 import time
 import neopixel
 
@@ -15,24 +16,37 @@ print("Neopixel init.")
 NP_pin = gpio51
 NP_count = 12
 np = neopixel.NeoPixel(NP_pin, NP_count)
-n = np.n
-rainbow_index = 0
+# normally neopixel object has a brightness method, but
+# this one does not seem to.
+brightness = 0.25
 
 # neopixel Boot init
-for i in range(4 * n):
-    for j in range(n):
+for i in range(2 * NP_count):
+    for j in range(NP_count):
         np[j] = (0, 0, 0)
-    np[i % n] = (255, 255, 255)
+    np[i % NP_count] = (255, 255, 255)
     np.write()
     time.sleep_ms(25)
 
     # clear
-    for i in range(n):
+    for i in range(NP_count):
         np[i] = (0, 0, 0)
     np.write()
 
+def np_dim(value):
+    return(int(value * brightness))
 
+wheel_white_idx = 0
 def wheel(pos):
+    global wheel_white_idx
+
+    wheel_white_idx +=1
+    # be off by one on purpose to cycle the white pixel
+    if wheel_white_idx > NP_count:
+        wheel_white_idx = 0
+
+    if (wheel_white_idx == 0): return(0, 0, 0)
+
     # Input a value 0 to 255 to get a color value.
     # The colours are a transition r - g - b - back to r.
     if pos < 0 or pos > 255:
@@ -51,20 +65,10 @@ def wheel(pos):
         r = 0
         g = int(pos * 3)
         b = int(255 - pos * 3)
-    return (r, g, b)
+    return(np_dim(r), np_dim(g), np_dim(b))
  
-
-def rainbow_cycle():
-    global rainbow_index
-
-    rainbow_index = rainbow_index + 11
-    j = rainbow_index
-    for i in range(NP_count):
-        pixel_index = (i * 256 // NP_count) + j
-        np[i] = wheel(pixel_index & 255)
-    np.write()
-
 print("Neopixel init done.")
+
 
 ############################################################
 #
@@ -98,28 +102,43 @@ else:
     duck_bus.writeto_mem(duck_id, 0xF5, bytes([0x25]))
     duck_bus.writeto_mem(duck_id, 0xF6, bytes([0x33]))
 
-#bootLED.off()
-
 
 ############################################################
-#
-# Main code
 
+# code to run often during petal updates
+
+rainbow_index = 0
+def rainbow_cycle():
+    global rainbow_index
+
+    rainbow_index = rainbow_index + 11
+    j = rainbow_index
+    for i in range(NP_count):
+        pixel_index = (i * 256 // NP_count) + j
+        np[i] = wheel(pixel_index & 255)
+    np.write()
+
+
+
+
+sleep_time = 40
 red = 0
 green = 0
 blue = 0
-
 new_red = red
 new_green = green
 new_blue = blue
 
-sleep_time = 40
+# This gets called in between petal updates for faster response
+def update_input():
+    global red, green, blue, new_red, new_green, new_blue
+    global brightness
 
-while True:
     if not buttonA.value():
         if not red:
             new_red = 1
-            print("red Pushed")
+            print("red Pushed, Setting brightness to 10%")
+            brightness = 0.1
     else:
         if red:
             new_red = 0
@@ -128,7 +147,8 @@ while True:
     if not buttonB.value():
         if not green:
             new_green = 1
-            print("green Pushed")
+            print("green Pushed, Setting brightness to 30%")
+            brightness = 0.3
     else:
         if green:
             new_green = 0
@@ -137,12 +157,12 @@ while True:
     if not buttonC.value():
         if not blue:
             new_blue = 1
-            print("blue Pushed")
+            print("blue Pushed, Setting brightness to 75%")
+            brightness = 0.75
     else:
         if blue:
             new_blue = 0
             print("blue released")
-
 
     if duck_bus:
         if red != new_red:
@@ -184,7 +204,7 @@ while True:
                 duck_bus.writeto_mem(duck_id, 0xEC, bytes([0xFF]))
                 duck_bus.writeto_mem(duck_id, 0xED, bytes([0xFF]))
 
-
+    global sleep_time
     ## see what's going on with the touch wheel
     if touchwheel_bus:
         tw = touchwheel_read(touchwheel_bus)
@@ -192,12 +212,17 @@ while True:
         if tw > 0:
             tw = (128 - tw) % 256 
             petal = int(tw/32) + 1
-            sleep_time = petal * 30
+            sleep_time = petal * 10
+            print("Updating sleep_time to %d" % sleep_time)
 
-    if not petal_bus:
-        rainbow_cycle()
-        time.sleep_ms(sleep_time*8)
-    else:
+
+petal_update_idx = 0
+petal_update_dir = 1
+
+def petal_cycle():
+    global petal_update_idx, petal_update_dir
+
+    if petal_bus:
         if new_red:
             overlay[3] = 0x80
         else:
@@ -219,16 +244,40 @@ while True:
         else:
             overlay[2] = 0
 
-        for j in range(7):
-            rainbow_cycle()
+        # each petal has 7 LEDs and the 8th one is the RGB in the center (0x80)
+        which_leds = (1 << petal_update_idx)
 
-            which_leds = (1 << j)
-            for i in range(1,9):
-                which_leds2 = which_leds
-                which_leds2 += overlay[i]
-                #print (str(i) + ": " + str(which_leds2))
-                petal_bus.writeto_mem(PETAL_ADDRESS, i, bytes([which_leds2]))
-            time.sleep_ms(sleep_time)
+        # Go through 8 petals:
+        for i in range(1,9):
+            which_leds2 = which_leds
+            which_leds2 += overlay[i]
+            #print (str(i) + ": " + str(which_leds2))
+            petal_bus.writeto_mem(PETAL_ADDRESS, i, bytes([which_leds2]))
+
+        petal_update_idx += petal_update_dir
+        # 7 leds per petal from 0 to 6
+        if petal_update_idx == 6: petal_update_dir = -1
+        if petal_update_idx == 0: petal_update_dir = 1
+
+
+#bootLED.off()
+
+############################################################
+#
+# Main code
+
+
+rainbow_call = 0
+petal_call = 0
+
+while True:
+    update_input()
+    time.sleep_ms(1)
+    rainbow_call += 1
+    if (rainbow_call % sleep_time == 0): rainbow_cycle()
+
+    petal_call += 1
+    if (petal_call % sleep_time*2 == 0): petal_cycle()
 
     red = new_red
     green = new_green
