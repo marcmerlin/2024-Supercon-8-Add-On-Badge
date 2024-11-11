@@ -1,9 +1,74 @@
 from machine import I2C, Pin
 import time
+import neopixel
 
 counter = 0
 overlay = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ]
 
+############################################################
+#
+# Neopixels
+
+print("Neopixel init.")
+
+# port 1 on branch 5
+NP_pin = gpio51
+NP_count = 12
+np = neopixel.NeoPixel(NP_pin, NP_count)
+n = np.n
+rainbow_index = 0
+
+# neopixel Boot init
+for i in range(4 * n):
+    for j in range(n):
+        np[j] = (0, 0, 0)
+    np[i % n] = (255, 255, 255)
+    np.write()
+    time.sleep_ms(25)
+
+    # clear
+    for i in range(n):
+        np[i] = (0, 0, 0)
+    np.write()
+
+
+def wheel(pos):
+    # Input a value 0 to 255 to get a color value.
+    # The colours are a transition r - g - b - back to r.
+    if pos < 0 or pos > 255:
+        r = g = b = 0
+    elif pos < 85:
+        r = int(pos * 3)
+        g = int(255 - pos * 3)
+        b = 0
+    elif pos < 170:
+        pos -= 85
+        r = int(255 - pos * 3)
+        g = 0
+        b = int(pos * 3)
+    else:
+        pos -= 170
+        r = 0
+        g = int(pos * 3)
+        b = int(255 - pos * 3)
+    return (r, g, b)
+ 
+
+def rainbow_cycle():
+    global rainbow_index
+
+    rainbow_index = rainbow_index + 11
+    j = rainbow_index
+    for i in range(NP_count):
+        pixel_index = (i * 256 // NP_count) + j
+        np[i] = wheel(pixel_index & 255)
+    np.write()
+
+print("Neopixel init done.")
+
+############################################################
+#
+# Duck SAO
 
 duck_id = 0x6c
 # https://taunoerik.art/2023/08/05/programming-ch32v003/
@@ -21,7 +86,7 @@ while not duck_bus:
 if not duck_bus:
     print(f"Warning: Duck not found!")
 else:
-    print("F - Duck found, sending color init.")
+    print("Duck found, sending color init.")
     # https://github.com/astuder/duckglow
     duck_bus.writeto_mem(duck_id, 0xF0, bytes([0x01]))
     duck_bus.writeto_mem(duck_id, 0xF1, bytes([0x01]))
@@ -34,6 +99,11 @@ else:
     duck_bus.writeto_mem(duck_id, 0xF6, bytes([0x33]))
 
 #bootLED.off()
+
+
+############################################################
+#
+# Main code
 
 red = 0
 green = 0
@@ -115,6 +185,15 @@ while True:
                 duck_bus.writeto_mem(duck_id, 0xED, bytes([0xFF]))
 
 
+    ## see what's going on with the touch wheel
+    if touchwheel_bus:
+        tw = touchwheel_read(touchwheel_bus)
+
+        if tw > 0:
+            tw = (128 - tw) % 256 
+            petal = int(tw/32) + 1
+            sleep_time = petal * 30
+
     if petal_bus:
         if new_red:
             overlay[3] = 0x80
@@ -138,16 +217,7 @@ while True:
             overlay[2] = 0
 
         for j in range(7):
-            ## see what's going on with the touch wheel
-            if touchwheel_bus:
-                tw = touchwheel_read(touchwheel_bus)
-
-                if tw > 0:
-                    tw = (128 - tw) % 256 
-                    petal = int(tw/32) + 1
-                else: 
-                    petal = 2
-                sleep_time = petal * 30
+            rainbow_cycle()
 
             which_leds = (1 << j)
             for i in range(1,9):
@@ -156,6 +226,8 @@ while True:
                 #print (str(i) + ": " + str(which_leds2))
                 petal_bus.writeto_mem(PETAL_ADDRESS, i, bytes([which_leds2]))
             time.sleep_ms(sleep_time)
+        else:
+            rainbow_cycle()
 
     red = new_red
     green = new_green
