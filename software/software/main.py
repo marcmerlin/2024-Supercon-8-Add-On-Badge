@@ -194,7 +194,10 @@ while True:
             petal = int(tw/32) + 1
             sleep_time = petal * 30
 
-    if petal_bus:
+    if not petal_bus:
+        rainbow_cycle()
+        time.sleep_ms(sleep_time*8)
+    else:
         if new_red:
             overlay[3] = 0x80
         else:
@@ -226,8 +229,6 @@ while True:
                 #print (str(i) + ": " + str(which_leds2))
                 petal_bus.writeto_mem(PETAL_ADDRESS, i, bytes([which_leds2]))
             time.sleep_ms(sleep_time)
-        else:
-            rainbow_cycle()
 
     red = new_red
     green = new_green
