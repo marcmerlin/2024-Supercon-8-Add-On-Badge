@@ -9,5 +9,5 @@ Thank you to
 ![PXL_20241111_215955140](https://github.com/user-attachments/assets/1c4182ea-1bcb-4721-986e-f64b0b3a4764)
 
 # Watch video here
-- https://www.youtube.com/watch?v=yjSSQkx-7U
-[![Video](https://github.com/user-attachments/assets/df21f0dc-727d-4cea-bf07-78ac1ebd10b5)](https://www.youtube.com/watch?v=yjSSQkx-7U)
+- https://www.youtube.com/watch?v=yjSSQkx-x7U
+[![Video](https://github.com/user-attachments/assets/df21f0dc-727d-4cea-bf07-78ac1ebd10b5)](https://www.youtube.com/watch?v=yjSSQkx-x7U)
