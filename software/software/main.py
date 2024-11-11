@@ -209,11 +209,11 @@ def update_input():
     if touchwheel_bus:
         tw = touchwheel_read(touchwheel_bus)
 
-        if tw > 0:
-            tw = (128 - tw) % 256 
-            petal = int(tw/32) + 1
-            sleep_time = petal * 10
-            print("Updating sleep_time to %d" % sleep_time)
+        # 1 can be a false reading, ignore it
+        if tw > 1:
+            tw2 = (256 - tw + 90) % 256
+            sleep_time = int(tw2/3) + 1
+            #print("Got wheel %d -> %d, updating sleep_time to %d" % (tw, tw2,  sleep_time))
 
 
 petal_update_idx = 0
