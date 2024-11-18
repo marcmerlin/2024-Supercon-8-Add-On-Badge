@@ -2,6 +2,8 @@
 
 This is my own fork/project on top of the Supercon 8 -- Supercon Add-On Badge
 
+Conference report: http://marc.merlins.org/perso/electronics/post_2024-11-01_Pasadena-Hackaday-Supercon-2024.html
+
 Thank you to
 - Adrian Studer for Duckjaws SAO: https://github.com/astuder/duckglow#
 - Thomas Flummer for Blinky Loop SAO: https://hackaday.io/project/198163-blinky-loop-sao
